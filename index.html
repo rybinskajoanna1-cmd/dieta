@@ -1,0 +1,1379 @@
+<!DOCTYPE html>
+<html lang="pl">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover" />
+  <meta name="mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+  <title>Masa pod HYROX - Bulk Planner</title>
+  
+  <!-- Tailwind CSS CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Google Fonts: Plus Jakarta Sans -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@400;500;600;700;800;900&display=swap" rel="stylesheet">
+  <!-- Supabase JS Client v2 -->
+  <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+  <!-- Lucide Icons CDN -->
+  <script src="https://unpkg.com/lucide@latest"></script>
+
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          fontFamily: {
+            sans: ['"Plus Jakarta Sans"', 'sans-serif'],
+          },
+          colors: {
+            pastel: {
+              peach: '#FFD6CD',
+              pink: '#FFE5D9',
+              powderPink: '#FFF0F3',
+              pinkAccent: '#FF7597',
+              yellow: '#FEF9C3',
+              yellowDark: '#FACC15',
+              blue: '#E0F2FE',
+              purple: '#F3E8FF',
+              mint: '#E6F4EA',
+              bgLight: '#FAF8F5',
+              cardDark: '#18181F',
+            }
+          },
+          borderRadius: {
+            'bento': '26px',
+            'bento-lg': '32px',
+          }
+        }
+      }
+    }
+  </script>
+
+  <style>
+    /* Hide scrollbars globally */
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { -ms-overflow-style: none; scrollbar-width: none; }
+    
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      -webkit-tap-highlight-color: transparent;
+      user-select: none;
+      background-color: #FAF8F5;
+    }
+
+    .dark body {
+      background-color: #0F0F12;
+    }
+
+    /* Soft transition effect for bento cards */
+    .bento-card {
+      transition: transform 0.2s cubic-bezier(0.34, 1.56, 0.64, 1), box-shadow 0.2s ease, background-color 0.2s ease;
+    }
+    .bento-card:active {
+      transform: scale(0.98);
+    }
+
+    /* Custom Checkbox */
+    .custom-check {
+      appearance: none;
+      width: 24px;
+      height: 24px;
+      border: 2px solid currentColor;
+      border-radius: 8px;
+      display: inline-grid;
+      place-content: center;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+    .custom-check::before {
+      content: "";
+      width: 12px;
+      height: 12px;
+      transform: scale(0);
+      transition: 120ms transform ease-in-out;
+      box-shadow: inset 1em 1em currentColor;
+      transform-origin: center;
+      clip-path: polygon(14% 44%, 0 65%, 50% 100%, 100% 16%, 80% 0%, 43% 62%);
+    }
+    .custom-check:checked::before {
+      transform: scale(1);
+    }
+  </style>
+</head>
+
+<body class="text-slate-900 dark:text-slate-100 min-h-screen flex flex-col justify-between transition-colors duration-300">
+
+  <!-- WRAPPER FOR MOBILE FOCUS (max-w-md container) -->
+  <div class="w-full max-w-md mx-auto min-h-screen flex flex-col justify-between shadow-2xl relative bg-[#FAF8F5] dark:bg-[#0F0F12]">
+
+    <!-- ================= TOP HEADER (Peach-pink pastel gradient) ================= -->
+    <header class="sticky top-0 z-30 bg-gradient-to-r from-[#FFD6CD] via-[#FFE5D9] to-[#FFF0E5] dark:from-[#2A1820] dark:via-[#1F141A] dark:to-[#18181F] px-5 pt-4 pb-4 rounded-b-[28px] shadow-sm border-b border-rose-200/50 dark:border-rose-900/30">
+      <div class="flex items-center justify-between">
+        <div>
+          <div class="flex items-center gap-2">
+            <span class="text-xl">⚡</span>
+            <h1 class="text-xl font-black tracking-tight text-slate-900 dark:text-rose-100">Masa pod HYROX</h1>
+          </div>
+          <p id="header-subtitle" class="text-xs font-bold text-slate-700/80 dark:text-rose-200/70 mt-0.5">Cel: 46.7 kg ➔ 50.0 kg • Bez ryb i żytniego</p>
+        </div>
+
+        <div class="flex items-center gap-2">
+          <!-- Cloud Sync Badge Pill -->
+          <button id="sync-status" onclick="forceCloudSync()" title="Kliknij, aby odświeżyć chmurę" class="flex items-center gap-1.5 px-3 py-1.5 rounded-full bg-white/80 dark:bg-[#18181F]/80 backdrop-blur-md shadow-sm border border-rose-200/80 dark:border-slate-800 text-[11px] font-extrabold text-slate-700 dark:text-slate-300 transition-all hover:scale-105 active:scale-95">
+            <span id="sync-dot" class="w-2 h-2 rounded-full bg-slate-400"></span>
+            <span id="sync-text">Łączenie...</span>
+          </button>
+
+          <!-- Dark/Light Theme Toggle -->
+          <button onclick="toggleDarkMode()" aria-label="Zmień motyw" class="p-2 rounded-full bg-white/80 dark:bg-[#18181F]/80 backdrop-blur-md shadow-sm border border-rose-200/80 dark:border-slate-800 text-slate-700 dark:text-slate-300 hover:scale-105 active:scale-95 transition-all">
+            <i data-lucide="sun" class="w-4 h-4 hidden dark:block text-amber-400"></i>
+            <i data-lucide="moon" class="w-4 h-4 block dark:hidden text-rose-500"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- HYROX Mode Switcher & Quick Randomizer Row -->
+      <div class="mt-3.5 flex items-center justify-between gap-2">
+        <!-- HYROX / Recovery Mode Toggle Pill -->
+        <div class="flex bg-white/90 dark:bg-[#18181F] p-1 rounded-full border border-rose-200 dark:border-slate-800 shadow-inner flex-1">
+          <button id="btn-mode-hyrox" onclick="setHyroxMode('hyrox')" class="flex-1 py-1.5 px-2 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1 bg-[#FF7597] text-white shadow-sm">
+            🔥 HYROX (2750 kcal)
+          </button>
+          <button id="btn-mode-recovery" onclick="setHyroxMode('recovery')" class="flex-1 py-1.5 px-2 rounded-full text-xs font-black text-slate-600 dark:text-slate-400 transition-all flex items-center justify-center gap-1">
+            🌱 Regen (2500 kcal)
+          </button>
+        </div>
+
+        <!-- Randomize Day Button -->
+        <button onclick="randomizeAllMeals()" title="Losuj cały dzień posiłków" class="px-3 py-2 rounded-full bg-white dark:bg-[#18181F] text-slate-800 dark:text-rose-200 border border-rose-200 dark:border-slate-800 font-extrabold text-xs shadow-sm hover:bg-rose-50 active:scale-95 transition-all flex items-center gap-1">
+          <span>🎲</span>
+          <span>Losuj</span>
+        </button>
+      </div>
+    </header>
+
+    <!-- ================= MAIN CONTENT CONTAINER ================= -->
+    <main class="flex-1 px-4 pt-4 pb-28 space-y-4 overflow-y-auto no-scrollbar">
+
+      <!-- ================= TAB 1: PLAN (POSIŁKI) ================= -->
+      <div id="tab-plan" class="tab-content space-y-4">
+        
+        <!-- MACRO SUMMARY BENTO CARD -->
+        <div class="bg-gradient-to-br from-[#FFF0F3] to-[#FFE5D9] dark:from-[#24171E] dark:to-[#18181F] p-4 rounded-bento border border-rose-200/80 dark:border-rose-900/40 shadow-sm space-y-2">
+          <div class="flex items-center justify-between">
+            <span class="text-xs font-black text-rose-950 dark:text-rose-200 uppercase tracking-wider flex items-center gap-1">
+              <i data-lucide="zap" class="w-3.5 h-3.5 text-rose-500"></i> Bilans Dzisiejszy
+            </span>
+            <span id="target-kcal-badge" class="px-2.5 py-0.5 rounded-full bg-white/80 dark:bg-slate-800 text-[11px] font-black text-rose-600 dark:text-rose-300">
+              Cel: 2750 kcal
+            </span>
+          </div>
+
+          <div class="flex items-baseline justify-between pt-1">
+            <div>
+              <span id="logged-kcal-text" class="text-3xl font-black text-slate-900 dark:text-white">0</span>
+              <span class="text-xs font-bold text-slate-500 dark:text-slate-400"> / <span id="target-kcal-sub">2750</span> kcal</span>
+            </div>
+            <div class="text-right">
+              <span id="logged-protein-text" class="text-lg font-black text-purple-600 dark:text-purple-400">0</span>
+              <span class="text-xs font-bold text-slate-500 dark:text-slate-400"> / 100g białka</span>
+            </div>
+          </div>
+
+          <!-- Progress Bar -->
+          <div class="w-full h-3 bg-white/70 dark:bg-slate-800 rounded-full overflow-hidden p-0.5 border border-rose-200/40">
+            <div id="logged-kcal-bar" class="h-full bg-gradient-to-r from-rose-400 to-pink-500 rounded-full transition-all duration-500" style="width: 0%"></div>
+          </div>
+        </div>
+
+        <!-- 5 MEAL SLOTS LIST -->
+        <div class="space-y-3">
+          <div class="flex items-center justify-between px-1">
+            <h2 class="text-sm font-black text-slate-800 dark:text-slate-200 uppercase tracking-wider">Plan 5 Posiłków Dnia</h2>
+            <span class="text-[11px] font-bold text-slate-400">Kliknij kartę, by edytować</span>
+          </div>
+
+          <div id="meals-list-container" class="space-y-3">
+            <!-- Dynamically populated 5 meal slots -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= TAB 2: POSTĘP (Waga, Woda, Bar Chart) ================= -->
+      <div id="tab-postep" class="tab-content hidden space-y-4">
+        
+        <!-- BUTTERY YELLOW WEEKLY CALORIE CHART BENTO CARD -->
+        <div class="bg-[#FEF9C3] dark:bg-[#272514] p-5 rounded-bento text-slate-900 dark:text-yellow-100 shadow-sm border border-yellow-200/80 dark:border-yellow-900/40 space-y-3">
+          <div class="flex items-center justify-between">
+            <div class="flex items-center gap-2">
+              <i data-lucide="bar-chart-3" class="w-5 h-5 text-amber-600 dark:text-yellow-400"></i>
+              <h3 class="text-base font-black">Kalorie w Tygodniu</h3>
+            </div>
+            <span class="text-[11px] font-black px-2.5 py-1 rounded-full bg-amber-200/80 dark:bg-yellow-900/60 text-amber-900 dark:text-yellow-200">
+              Średnia: <span id="weekly-avg-kcal">0</span> kcal
+            </span>
+          </div>
+
+          <!-- Bar Chart Container -->
+          <div id="weekly-chart-bars" class="flex items-end justify-between h-36 pt-4 px-1 gap-1.5">
+            <!-- Populated dynamically -->
+          </div>
+
+          <div class="flex justify-between items-center text-[10px] font-extrabold text-amber-900/70 dark:text-yellow-300/70 pt-1 border-t border-amber-200/60 dark:border-yellow-900/40">
+            <span>Linia przerywana = Cel dnia</span>
+            <span>HYROX Mass Mode</span>
+          </div>
+        </div>
+
+        <!-- 3 PASTEL BENTO CARDS: WATER, PROTEIN, WEIGHT -->
+        <div class="grid grid-cols-2 gap-3">
+          
+          <!-- BENTO 1: WATER TRACKER (Pastel Blue) -->
+          <div class="col-span-2 sm:col-span-1 bg-[#E0F2FE] dark:bg-[#162736] p-4 rounded-bento text-slate-900 dark:text-sky-100 border border-sky-200/80 dark:border-sky-900/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-sky-800 dark:text-sky-300 flex items-center gap-1">
+                💧 Woda
+              </span>
+              <span id="water-count-text" class="text-xs font-black px-2 py-0.5 rounded-full bg-white/80 dark:bg-sky-950 text-sky-700 dark:text-sky-300">
+                0 / 8 szklanek
+              </span>
+            </div>
+
+            <div id="water-cups-grid" class="flex items-center justify-around py-1 text-lg">
+              <!-- 8 Cup icons -->
+            </div>
+
+            <div class="flex items-center justify-between pt-1">
+              <button onclick="changeWater(-1)" class="w-8 h-8 rounded-full bg-white dark:bg-sky-900 text-sky-800 dark:text-sky-200 font-black text-base shadow-sm active:scale-95 transition-all flex items-center justify-center">
+                -
+              </button>
+              <span class="text-[11px] font-bold text-sky-900/70 dark:text-sky-200/70">2.0 litra cel</span>
+              <button onclick="changeWater(1)" class="w-8 h-8 rounded-full bg-sky-600 text-white font-black text-base shadow-sm active:scale-95 transition-all flex items-center justify-center">
+                +
+              </button>
+            </div>
+          </div>
+
+          <!-- BENTO 2: PROTEIN TRACKER (Pastel Purple) -->
+          <div class="col-span-2 sm:col-span-1 bg-[#F3E8FF] dark:bg-[#251A33] p-4 rounded-bento text-slate-900 dark:text-purple-100 border border-purple-200/80 dark:border-purple-900/40 space-y-2">
+            <div class="flex items-center justify-between">
+              <span class="text-xs font-black uppercase tracking-wider text-purple-800 dark:text-purple-300 flex items-center gap-1">
+                ⚡ Białko
+              </span>
+              <span class="text-xs font-black text-purple-700 dark:text-purple-300">Cel: 100g</span>
+            </div>
+
+            <div class="py-1">
+              <div class="text-2xl font-black text-purple-950 dark:text-purple-100">
+                <span id="bento-protein-val">0</span>g
+              </div>
+              <p class="text-[10px] font-bold text-purple-800/70 dark:text-purple-300/70">Brak ryb w diecie</p>
+            </div>
+
+            <div class="w-full h-2.5 bg-white/80 dark:bg-purple-950 rounded-full overflow-hidden">
+              <div id="bento-protein-bar" class="h-full bg-purple-600 rounded-full transition-all duration-300" style="width: 0%"></div>
+            </div>
+          </div>
+
+        </div>
+
+        <!-- BENTO 3: WEIGHT TRACKER (Pastel Mint) -->
+        <div class="bg-[#E6F4EA] dark:bg-[#142A1E] p-5 rounded-bento text-slate-900 dark:text-emerald-100 border border-emerald-200/80 dark:border-emerald-900/40 space-y-3">
+          <div class="flex items-center justify-between">
+            <div>
+              <span class="text-xs font-black uppercase tracking-wider text-emerald-800 dark:text-emerald-300 flex items-center gap-1">
+                ⚖️ Kontrola Wagi (Masa HYROX)
+              </span>
+              <h3 class="text-xl font-black mt-0.5">
+                <span id="weight-current-display">46.7</span> kg <span class="text-xs font-normal text-slate-500">➜ Cel: 50.0 kg</span>
+              </h3>
+            </div>
+            <div class="text-right">
+              <span id="weight-gained-badge" class="px-2.5 py-1 rounded-full bg-emerald-600 text-white font-black text-xs">
+                +0.0 kg
+              </span>
+            </div>
+          </div>
+
+          <!-- Weight Progress Bar -->
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] font-extrabold text-emerald-900/70 dark:text-emerald-300">
+              <span>Start: 46.7 kg</span>
+              <span id="weight-progress-percent">0% celu</span>
+              <span>Cel: 50.0 kg</span>
+            </div>
+            <div class="w-full h-3 bg-white dark:bg-emerald-950 rounded-full overflow-hidden p-0.5 border border-emerald-300/40">
+              <div id="weight-progress-bar" class="h-full bg-emerald-600 rounded-full transition-all duration-500" style="width: 0%"></div>
+            </div>
+          </div>
+
+          <!-- Log Weight Input -->
+          <div class="pt-2 flex items-center gap-2">
+            <input type="number" step="0.1" id="input-new-weight" placeholder="Wpisz np. 47.1" class="flex-1 px-3.5 py-2.5 rounded-2xl bg-white dark:bg-[#18181F] border border-emerald-300 dark:border-emerald-800 text-xs font-bold outline-none focus:ring-2 focus:ring-emerald-500">
+            <button onclick="logNewWeight()" class="px-4 py-2.5 rounded-2xl bg-emerald-700 hover:bg-emerald-800 text-white font-black text-xs shadow-sm active:scale-95 transition-all">
+              Zapisz Wagę
+            </button>
+          </div>
+
+          <!-- Weight Log History List -->
+          <div id="weight-history-list" class="space-y-1.5 pt-1 text-xs">
+            <!-- Dynamically populated history -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= TAB 3: ZAKUPY & AUTOPILOT ================= -->
+      <div id="tab-zakupy" class="tab-content hidden space-y-4">
+        
+        <!-- EVENING PACKING CHECKLIST (AUTOPILOT) -->
+        <div class="bg-white dark:bg-[#18181F] p-5 rounded-bento border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-black flex items-center gap-1.5">
+                🎒 Autopilot: Spakuj Torbę na Jutro
+              </h3>
+              <p class="text-[11px] text-slate-500 font-bold">Zrób wieczorem, by rano nie tracić czasu!</p>
+            </div>
+            <span id="packing-streak-badge" class="px-2.5 py-1 rounded-full bg-rose-100 dark:bg-rose-950/60 text-rose-600 dark:text-rose-300 font-black text-xs">
+              Seria: 3 dni 🔥
+            </span>
+          </div>
+
+          <div class="space-y-2 pt-1">
+            <label class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 cursor-pointer transition-all hover:bg-slate-100">
+              <input type="checkbox" id="check-pack-sniadanie" onchange="togglePackingCheck('sniadanie')" class="custom-check border-slate-900 text-slate-900 dark:border-white">
+              <span class="text-xs font-bold">🥣 Śniadanie gotowe w pojemniku / szejkerze</span>
+            </label>
+
+            <label class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 cursor-pointer transition-all hover:bg-slate-100">
+              <input type="checkbox" id="check-pack-obiad" onchange="togglePackingCheck('obiad')" class="custom-check border-slate-900 text-slate-900 dark:border-white">
+              <span class="text-xs font-bold">🍱 Obiad spakowany w torbie termo</span>
+            </label>
+
+            <label class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 cursor-pointer transition-all hover:bg-slate-100">
+              <input type="checkbox" id="check-pack-szejk" onchange="togglePackingCheck('szejk')" class="custom-check border-slate-900 text-slate-900 dark:border-white">
+              <span class="text-xs font-bold">🍌 Przekąska / Szejk przed HYROX gotowy</span>
+            </label>
+
+            <label class="flex items-center gap-3 p-2.5 rounded-2xl bg-slate-50 dark:bg-slate-800/60 cursor-pointer transition-all hover:bg-slate-100">
+              <input type="checkbox" id="check-pack-woda" onchange="togglePackingCheck('woda')" class="custom-check border-slate-900 text-slate-900 dark:border-white">
+              <span class="text-xs font-bold">💧 Butelka wody / izotoniku w plecaku</span>
+            </label>
+          </div>
+        </div>
+
+        <!-- AUTO-GENERATED SHOPPING LIST -->
+        <div class="bg-white dark:bg-[#18181F] p-5 rounded-bento border border-slate-200/80 dark:border-slate-800 space-y-3 shadow-sm">
+          <div class="flex items-center justify-between">
+            <div>
+              <h3 class="text-sm font-black flex items-center gap-1.5">
+                🛒 Lista Zakupów (Biedronka / Lidl)
+              </h3>
+              <p class="text-[11px] text-slate-500 font-bold">Wygenerowano z 5 wybranych posiłków</p>
+            </div>
+
+            <!-- Multiplier Toggle (1 Day vs 3 Days) -->
+            <div class="flex bg-slate-100 dark:bg-slate-800 p-1 rounded-xl text-xs font-black">
+              <button id="btn-shop-1x" onclick="setShoppingMultiplier(1)" class="px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm">
+                1 Dzień
+              </button>
+              <button id="btn-shop-3x" onclick="setShoppingMultiplier(3)" class="px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900">
+                3 Dni
+              </button>
+            </div>
+          </div>
+
+          <div id="shopping-list-container" class="space-y-2 pt-1">
+            <!-- Dynamically populated shopping list -->
+          </div>
+        </div>
+
+      </div>
+
+      <!-- ================= TAB 4: RATUJ MASĘ (EMERGENCY BULK) ================= -->
+      <div id="tab-ratunek" class="tab-content hidden space-y-4">
+        
+        <div class="bg-gradient-to-r from-rose-500 to-pink-600 text-white p-5 rounded-bento shadow-md space-y-1">
+          <h2 class="text-lg font-black flex items-center gap-2">
+            <span>🚨</span> Ratuj Masę (Szybkie +400 kcal)
+          </h2>
+          <p class="text-xs font-extrabold text-rose-100">
+            Brakuje kalorii przed snem? Wybierz jedną z 2-minutowych opcji bez gotowania!
+          </p>
+        </div>
+
+        <!-- 6 EMERGENCY BULK CARDS -->
+        <div id="emergency-cards-grid" class="grid grid-cols-1 gap-3">
+          <!-- Dynamically populated emergency items -->
+        </div>
+
+        <!-- LOGGED EMERGENCY ITEMS LIST -->
+        <div id="logged-emergency-container" class="bg-white dark:bg-[#18181F] p-4 rounded-bento border border-slate-200/80 dark:border-slate-800 space-y-2">
+          <h3 class="text-xs font-black uppercase text-slate-500 tracking-wider">Dodane dzisiaj ratunkowo:</h3>
+          <div id="logged-emergency-list" class="space-y-1.5 text-xs font-bold">
+            <!-- List of added emergency meals -->
+          </div>
+        </div>
+
+      </div>
+
+    </main>
+
+    <!-- ================= FLOATING BOTTOM NAVIGATION BAR ================= -->
+    <div class="fixed bottom-3 left-0 right-0 z-40 px-4 pointer-events-none">
+      <div class="max-w-[400px] mx-auto pointer-events-auto">
+        <nav class="bg-[#18181B] dark:bg-slate-900 text-white rounded-full p-2 shadow-2xl backdrop-blur-lg flex items-center justify-around border border-white/10">
+          
+          <button onclick="switchTab('plan')" id="nav-plan" class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-full text-[#FF7597] font-black transition-all">
+            <i data-lucide="utensils" class="w-5 h-5"></i>
+            <span class="text-[10px]">Plan</span>
+          </button>
+
+          <button onclick="switchTab('postep')" id="nav-postep" class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-full opacity-60 hover:opacity-100 transition-all">
+            <i data-lucide="trending-up" class="w-5 h-5"></i>
+            <span class="text-[10px]">Postęp</span>
+          </button>
+
+          <button onclick="switchTab('zakupy')" id="nav-zakupy" class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-full opacity-60 hover:opacity-100 transition-all">
+            <i data-lucide="shopping-bag" class="w-5 h-5"></i>
+            <span class="text-[10px]">Zakupy</span>
+          </button>
+
+          <button onclick="switchTab('ratunek')" id="nav-ratunek" class="nav-btn flex flex-col items-center gap-0.5 px-4 py-1.5 rounded-full opacity-60 hover:opacity-100 transition-all">
+            <i data-lucide="shield-alert" class="w-5 h-5"></i>
+            <span class="text-[10px]">Ratunek</span>
+          </button>
+
+        </nav>
+      </div>
+    </div>
+
+    <!-- ================= BOTTOM SHEET MEAL DETAIL MODAL ================= -->
+    <div id="meal-modal" class="fixed inset-0 z-50 bg-black/60 backdrop-blur-sm hidden flex-col justify-end transition-opacity duration-300">
+      <div class="bg-white dark:bg-[#18181F] w-full max-w-md mx-auto rounded-t-[32px] p-6 space-y-4 max-h-[85vh] overflow-y-auto no-scrollbar shadow-2xl">
+        
+        <div class="flex items-center justify-between border-b border-slate-100 dark:border-slate-800 pb-3">
+          <div>
+            <span id="modal-slot-title" class="text-xs font-black uppercase tracking-wider text-rose-500">Śniadanie (Praca)</span>
+            <h3 id="modal-meal-name" class="text-lg font-black leading-tight mt-0.5">Owsianka Snickers</h3>
+          </div>
+          <button onclick="closeMealModal()" class="p-2 rounded-full bg-slate-100 dark:bg-slate-800 text-slate-500 hover:opacity-80">
+            <i data-lucide="x" class="w-5 h-5"></i>
+          </button>
+        </div>
+
+        <!-- MACROS & EATEN TOGGLE ROW -->
+        <div class="flex items-center justify-between bg-rose-50 dark:bg-rose-950/40 p-3.5 rounded-2xl border border-rose-200/60 dark:border-rose-900/40">
+          <div>
+            <div class="text-base font-black text-slate-900 dark:text-white">
+              <span id="modal-meal-kcal">560</span> kcal • <span id="modal-meal-protein">22</span>g białka
+            </div>
+            <p class="text-[11px] font-bold text-slate-500">Wartość z uwzględnieniem dodatków</p>
+          </div>
+          <button id="modal-btn-eaten" onclick="toggleMealEatenFromModal()" class="px-4 py-2 rounded-xl font-black text-xs transition-all flex items-center gap-1.5 shadow-sm">
+            <span>✓ Zjedzone</span>
+          </button>
+        </div>
+
+        <!-- INGREDIENTS LIST WITH GRAM WEIGHTS -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-black uppercase text-slate-500 tracking-wider">Składniki i Gramatura:</h4>
+          <ul id="modal-ingredients-list" class="space-y-1.5 text-xs font-bold text-slate-700 dark:text-slate-300 bg-slate-50 dark:bg-slate-800/50 p-3.5 rounded-2xl">
+            <!-- List of ingredients -->
+          </ul>
+        </div>
+
+        <!-- CALORIE BOOSTERS TOGGLES -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-black uppercase text-rose-500 tracking-wider flex items-center gap-1">
+            🚀 Podbij Kalorie (Booster):
+          </h4>
+          <div class="grid grid-cols-1 gap-2">
+            <label class="flex items-center justify-between p-2.5 rounded-2xl bg-amber-50 dark:bg-amber-950/30 border border-amber-200/60 cursor-pointer">
+              <span class="text-xs font-bold text-amber-900 dark:text-amber-200">+1 łyżka masła orzechowego (+100 kcal / 4g B)</span>
+              <input type="checkbox" id="booster-pb" onchange="toggleBooster('pb')" class="custom-check border-amber-800 text-amber-800">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-2xl bg-yellow-50 dark:bg-yellow-950/30 border border-yellow-200/60 cursor-pointer">
+              <span class="text-xs font-bold text-yellow-900 dark:text-yellow-200">+1 łyżka oliwy / oleju (+90 kcal)</span>
+              <input type="checkbox" id="booster-oil" onchange="toggleBooster('oil')" class="custom-check border-yellow-800 text-yellow-800">
+            </label>
+
+            <label class="flex items-center justify-between p-2.5 rounded-2xl bg-rose-50 dark:bg-rose-950/30 border border-rose-200/60 cursor-pointer">
+              <span class="text-xs font-bold text-rose-900 dark:text-rose-200">+Starty ser żółty 20g (+100 kcal / 7g B)</span>
+              <input type="checkbox" id="booster-cheese" onchange="toggleBooster('cheese')" class="custom-check border-rose-800 text-rose-800">
+            </label>
+          </div>
+        </div>
+
+        <!-- SWAP MEAL OPTIONS -->
+        <div class="space-y-2 pt-2 border-t border-slate-100 dark:border-slate-800">
+          <div class="flex items-center justify-between">
+            <h4 class="text-xs font-black uppercase text-slate-500 tracking-wider">Zmień Posiłek na Inny (1 z 7):</h4>
+            <button onclick="randomizeSingleSlotInModal()" class="px-2.5 py-1 rounded-xl bg-slate-100 dark:bg-slate-800 text-slate-800 dark:text-slate-200 font-extrabold text-[11px]">
+              🎲 Losuj inny
+            </button>
+          </div>
+
+          <div id="modal-swap-options" class="space-y-1.5 max-h-44 overflow-y-auto pr-1 no-scrollbar">
+            <!-- 7 meal options to pick from -->
+          </div>
+        </div>
+
+      </div>
+    </div>
+
+  </div>
+
+  <!-- ================= JAVASCRIPT LOGIC & SUPABASE ENGINE ================= -->
+  <script>
+    // -------------------------------------------------------------
+    // 1. SUPABASE CONFIGURATION
+    // -------------------------------------------------------------
+    const SUPABASE_URL = 'https://ikjifhfeojfcctleunvh.supabase.co';
+    const SUPABASE_ANON_KEY = 'WKLEJ_TUTAJ_SWOJ_KLUCZ'; // <-- Paste your Supabase anon key here
+
+    let supabaseClient = null;
+    if (SUPABASE_URL && SUPABASE_ANON_KEY && !SUPABASE_ANON_KEY.includes('WKLEJ_TUTAJ')) {
+      try {
+        supabaseClient = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+      } catch (err) {
+        console.warn('Supabase init failed:', err);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 2. 35 MEALS DATABASE (7 OPTIONS PER 5 SLOTS)
+    // -------------------------------------------------------------
+    const MEALS_DATABASE = [
+      // SLOT 0: Śniadanie (Praca - pudełko, ~550 kcal)
+      [
+        { name: 'Owsianka Snickers', kcal: 560, protein: 22, ingredients: ['Płatki owsiane 60g', 'Mleko 3.2% 200ml', 'Masło orzechowe 20g', 'Odżywka lub kakao 15g', 'Banan 100g'] },
+        { name: 'Kasza manna z dżemem i bananem', kcal: 530, protein: 14, ingredients: ['Kasza manna 55g', 'Mleko 3.2% 250ml', 'Dżem truskawkowy 30g', 'Banan 100g', 'Miód 10g'] },
+        { name: 'Kuskus ze skyrem', kcal: 540, protein: 28, ingredients: ['Kuskus 60g', 'Skyr waniliowy 150g', 'Miód 15g', 'Orzechy włoskie 15g', 'Cynamon'] },
+        { name: 'Słodka tortilla z serkiem', kcal: 570, protein: 20, ingredients: ['Tortilla pszenna 1 szt. (60g)', 'Serek waniliowy 150g', 'Dżem owocowy 20g', 'Banan 1 szt.'] },
+        { name: 'Ryż na mleku z jabłkiem', kcal: 520, protein: 15, ingredients: ['Ryż biały 60g', 'Mleko 3.2% 250ml', 'Jabłko prażone z cynamonem 100g', 'Miód 10g'] },
+        { name: 'Kajzerki z pastą jajeczną', kcal: 580, protein: 21, ingredients: ['Kajzerki pszenne 2 szt. (110g)', 'Jajka ugotowane 2 szt.', 'Majonez 15g', 'Szczypiorek'] },
+        { name: 'Placuszki bananowe', kcal: 540, protein: 22, ingredients: ['Banan 1 szt. (120g)', 'Jajko 1 szt.', 'Mąka pszenna 40g', 'Skyr naturalny 100g', 'Olej 5g'] }
+      ],
+      // SLOT 1: II Śniadanie (Praca - na szybko, ~450 kcal)
+      [
+        { name: 'Pitny skyr z bułką i serem', kcal: 460, protein: 26, ingredients: ['Skyr pitny 330g', 'Bułka pszenna 1 szt. (60g)', 'Ser żółty 2 plastry (40g)'] },
+        { name: 'Szejk z shakera', kcal: 480, protein: 25, ingredients: ['Mleko 3.2% 250ml', 'Banan 1 szt. (120g)', 'Masło orzechowe 25g', 'Odżywka białkowa 25g'] },
+        { name: '2 bułki z szynką i serem', kcal: 470, protein: 23, ingredients: ['Kajzerki 2 szt. (110g)', 'Masło 10g', 'Szynka drobiowa 40g', 'Ser żółty 40g'] },
+        { name: 'Serek wiejski z chałką', kcal: 450, protein: 24, ingredients: ['Serek wiejski 200g', 'Chałka 80g', 'Dżem owocowy 20g'] },
+        { name: 'Jogurt grecki z granolą', kcal: 460, protein: 18, ingredients: ['Jogurt grecki 200g', 'Granola owocowa 50g', 'Miód 15g', 'Banan 1 szt.'] },
+        { name: 'Tortilla na zimno', kcal: 440, protein: 20, ingredients: ['Tortilla 1 szt.', 'Serek kremowy 30g', 'Szynka drobiowa 50g', 'Ser żółty 30g', 'Ogórek 40g'] },
+        { name: 'Pudding proteinowy z waflami', kcal: 430, protein: 23, ingredients: ['Pudding proteinowy 200g', 'Wafle ryżowe 4 szt. (35g)', 'Masło orzechowe 15g'] }
+      ],
+      // SLOT 2: Obiad (Praca - pudełko na 2-3 dni, ~700 kcal)
+      [
+        { name: 'Makaron z kurczakiem i pesto', kcal: 720, protein: 38, ingredients: ['Makaron 90g', 'Pierś z kurczaka 120g', 'Pesto zielone 30g', 'Śmietanka 15% 30g', 'Ser żółty/parmezan 20g'] },
+        { name: 'Ryż z kurczakiem w curry', kcal: 690, protein: 36, ingredients: ['Ryż biały 90g', 'Pierś z kurczaka 130g', 'Sos curry z mleczkiem kokosowym 100ml', 'Mieszanka warzyw 80g', 'Oliwa 10g'] },
+        { name: 'Bolognese z serem', kcal: 730, protein: 40, ingredients: ['Makaron 90g', 'Mięso mielone z indyka 120g', 'Sos pomidorowy 150g', 'Ser żółty 30g', 'Oliwa 10g'] },
+        { name: 'Pieczony kurczak z ziemniakami', kcal: 680, protein: 37, ingredients: ['Ziemniaki 350g', 'Pierś/udko z kurczaka 150g', 'Oliwa z oliwek 15g', 'Surówka z marchewki 100g'] },
+        { name: 'Ryż smażony z kurczakiem i jajkiem', kcal: 710, protein: 39, ingredients: ['Ryż 90g', 'Kurczak 120g', 'Jajko 1 szt.', 'Sos sojowy 15ml', 'Olej 15g', 'Warzywa 80g'] },
+        { name: 'Makaron z kurczakiem i szpinakiem', kcal: 700, protein: 38, ingredients: ['Makaron 90g', 'Kurczak 120g', 'Szpinak 100g', 'Serek śmietankowy 40g', 'Czosnek', 'Oliwa 10g'] },
+        { name: 'Gulasz z kaszą', kcal: 690, protein: 36, ingredients: ['Kasza gryczana 80g', 'Mięso gulaszowe wieprzowe 130g', 'Sos własny z warzywami 150ml', 'Ogórek kiszony 100g'] }
+      ],
+      // SLOT 3: Podwieczorek (Dom - przed HYROX, ~400 kcal)
+      [
+        { name: 'Szejk owsiano-bananowy', kcal: 420, protein: 14, ingredients: ['Mleko 3.2% 200ml', 'Płatki owsiane 40g', 'Banan 1 szt.', 'Masło orzechowe 15g'] },
+        { name: 'Wafle ryżowe z miodem i bananem', kcal: 390, protein: 9, ingredients: ['Wafle ryżowe 5 szt.', 'Masło orzechowe 20g', 'Banan 1 szt.', 'Miód 15g'] },
+        { name: 'Budyń z biszkoptami', kcal: 410, protein: 11, ingredients: ['Budyń waniliowy na mleku 250ml', 'Biszkopty 30g', 'Dżem truskawkowy 20g'] },
+        { name: 'Chałka z kakao', kcal: 430, protein: 13, ingredients: ['Chałka 90g', 'Masło 15g', 'Dżem 20g', 'Szklanka kakao na mleku 3.2% 200ml'] },
+        { name: 'Tosty francuskie', kcal: 410, protein: 15, ingredients: ['Chleb tostowy 3 kromki', 'Jajko 1 szt.', 'Mleko 30ml', 'Cynamon', 'Dżem/cukier puder 20g', 'Masło 10g'] },
+        { name: 'Koktajl czekoladowo-orzechowy', kcal: 420, protein: 16, ingredients: ['Mleko 3.2% 250ml', 'Kakao 10g', 'Banan 1 szt.', 'Masło orzechowe 25g'] },
+        { name: 'Ryż na mleku z żelkami', kcal: 390, protein: 8, ingredients: ['Ryż na mleku gotowy 200g', 'Żelki owocowe 40g (szybkie węgle przed HYROX!)'] }
+      ],
+      // SLOT 4: Kolacja (Dom - regeneracja, ~580 kcal)
+      [
+        { name: 'Omlet z szynką i bułką', kcal: 590, protein: 32, ingredients: ['Jajka 3 szt.', 'Masło 10g', 'Szynka drobiowa 40g', 'Ser żółty 30g', 'Kajzerka 1 szt. (60g)'] },
+        { name: 'Quesadilla z kurczakiem i serem', kcal: 610, protein: 35, ingredients: ['Tortilla 2 szt.', 'Kurczak pieczony 80g', 'Ser żółty 50g', 'Sos ketch-mayo 20g'] },
+        { name: 'Tosty z jajkiem sadzonym', kcal: 580, protein: 28, ingredients: ['Chleb tostowy 4 kromki', 'Ser żółty 40g', 'Szynka drobiowa 40g', 'Jajka sadzone 2 szt.'] },
+        { name: 'Jajecznica z 4 jajek z kajzerkami', kcal: 600, protein: 30, ingredients: ['Jajka 4 szt.', 'Masło 15g', 'Szczypiorek', 'Kajzerki 2 szt. (110g)'] },
+        { name: 'Naleśniki z twarogiem', kcal: 570, protein: 29, ingredients: ['Naleśniki 3 szt.', 'Twaróg półtłusty ze skyrem 200g', 'Dżem/owoce 40g', 'Miód 15g'] },
+        { name: 'Pizza na tortilli', kcal: 590, protein: 31, ingredients: ['Tortilla 2 szt.', 'Sos pomidorowy 40g', 'Ser żółty 60g', 'Szynka drobiowa 50g', 'Pieczarki, kukurydza 30g'] },
+        { name: 'Makaron z twarogiem i miodem', kcal: 560, protein: 27, ingredients: ['Makaron 90g', 'Twaróg półtłusty 150g', 'Śmietana 18% 30g', 'Miód 25g', 'Cynamon'] }
+      ]
+    ];
+
+    const SLOT_TITLES = [
+      '1. Śniadanie (Praca - pudełko)',
+      '2. II Śniadanie (Praca - na szybko)',
+      '3. Obiad (Praca - pudełko)',
+      '4. Podwieczorek (Przed HYROX)',
+      '5. Kolacja (Dom - regeneracja)'
+    ];
+
+    // -------------------------------------------------------------
+    // 3. EMERGENCY BULK OPTIONS DATABASE
+    // -------------------------------------------------------------
+    const EMERGENCY_OPTIONS = [
+      { id: 'shake500', name: 'Szejk 500 kcal', kcal: 500, protein: 18, desc: 'Mleko 250ml, banan, 30g masła orzechowego, 30g płatków owsianych' },
+      { id: 'tostyPB', name: '2 Tosty z Masłem Orzechowym & Bananem', kcal: 450, protein: 14, desc: 'Chleb tostowy 2 kromki, masło orzechowe 30g, banan 1 szt.' },
+      { id: 'skyrMiod', name: 'Skyr z Miodem & Granolą', kcal: 350, protein: 22, desc: 'Skyr waniliowy 150g, miód 20g, granola 40g' },
+      { id: 'kakaoChalka', name: 'Kakao na Mleku 3.2% z Chałką', kcal: 420, protein: 12, desc: 'Chałka 80g z masłem 10g + szklanka gorącego kakao' },
+      { id: 'gainerBanan', name: 'Białko / Gainer na Mleku z Bananem', kcal: 480, protein: 28, desc: 'Mleko 300ml, 30g odżywki, banan 1 szt.' },
+      { id: 'orzechyWafle', name: 'Garść Orzechów + Banan + Wafle', kcal: 380, protein: 8, desc: 'Orzechy włoskie/nerkowca 30g, banan 1 szt., wafle ryżowe 3 szt.' }
+    ];
+
+    // -------------------------------------------------------------
+    // 4. BULLETPROOF DEFAULT STATE MERGER
+    // -------------------------------------------------------------
+    function mergeWithDefaults(raw) {
+      if (!raw || typeof raw !== 'object' || Array.isArray(raw)) {
+        raw = {};
+      }
+
+      return {
+        hyroxMode: raw.hyroxMode === 'recovery' ? 'recovery' : 'hyrox',
+        selectedMealIndexes: Array.isArray(raw.selectedMealIndexes) && raw.selectedMealIndexes.length === 5 
+          ? raw.selectedMealIndexes 
+          : [0, 0, 0, 0, 0],
+        mealsEaten: Array.isArray(raw.mealsEaten) && raw.mealsEaten.length === 5 
+          ? raw.mealsEaten 
+          : [false, false, false, false, false],
+        boosters: Array.isArray(raw.boosters) && raw.boosters.length === 5 
+          ? raw.boosters 
+          : [
+              { pb: false, oil: false, cheese: false },
+              { pb: false, oil: false, cheese: false },
+              { pb: false, oil: false, cheese: false },
+              { pb: false, oil: false, cheese: false },
+              { pb: false, oil: false, cheese: false }
+            ],
+        waterCups: typeof raw.waterCups === 'number' ? Math.max(0, Math.min(8, raw.waterCups)) : 0,
+        weightCurrent: typeof raw.weightCurrent === 'number' ? raw.weightCurrent : 46.7,
+        weightGoal: 50.0,
+        weightLogs: Array.isArray(raw.weightLogs) ? raw.weightLogs : [
+          { date: '2026-11-15', weight: 46.2 },
+          { date: '2026-11-20', weight: 46.5 },
+          { date: '2026-11-22', weight: 46.7 }
+        ],
+        packingChecklist: raw.packingChecklist && typeof raw.packingChecklist === 'object' ? raw.packingChecklist : {
+          sniadanie: false, obiad: false, szejk: false, woda: false
+        },
+        packingStreak: typeof raw.packingStreak === 'number' ? raw.packingStreak : 3,
+        emergencyAdditions: Array.isArray(raw.emergencyAdditions) ? raw.emergencyAdditions : [],
+        weeklyHistory: raw.weeklyHistory && typeof raw.weeklyHistory === 'object' ? raw.weeklyHistory : {
+          'Pn': 2720, 'Wt': 2680, 'Śr': 2780, 'Cz': 2520, 'Pt': 2750, 'So': 2810, 'Nd': 0
+        },
+        shoppingChecked: raw.shoppingChecked && typeof raw.shoppingChecked === 'object' ? raw.shoppingChecked : {},
+        shoppingMultiplier: raw.shoppingMultiplier === 3 ? 3 : 1,
+        theme: raw.theme === 'dark' ? 'dark' : 'light'
+      };
+    }
+
+    let appState = mergeWithDefaults(null);
+    let activeModalSlot = null;
+    let debounceTimer = null;
+
+    // -------------------------------------------------------------
+    // 5. INITIALIZATION & SYNC LOGIC
+    // -------------------------------------------------------------
+    window.onload = async function() {
+      lucide.createIcons();
+      loadLocalCache();
+
+      if (appState.theme === 'dark') {
+        document.documentElement.classList.add('dark');
+      }
+
+      renderAll();
+
+      if (supabaseClient) {
+        updateSyncStatus('syncing');
+        await fetchFromCloud();
+        subscribeToCloud();
+      } else {
+        updateSyncStatus('offline');
+      }
+
+      window.addEventListener('focus', () => {
+        if (supabaseClient) fetchFromCloud();
+      });
+    };
+
+    function updateSyncStatus(status) {
+      const dot = document.getElementById('sync-dot');
+      const text = document.getElementById('sync-text');
+
+      if (status === 'ok') {
+        dot.className = "w-2 h-2 rounded-full bg-emerald-500 animate-pulse";
+        text.innerText = "Chmura OK";
+      } else if (status === 'syncing') {
+        dot.className = "w-2 h-2 rounded-full bg-amber-500 animate-spin";
+        text.innerText = "Zapisywanie...";
+      } else {
+        dot.className = "w-2 h-2 rounded-full bg-slate-400";
+        text.innerText = "Tryb lokalny";
+      }
+    }
+
+    function loadLocalCache() {
+      const saved = localStorage.getItem('movesync_hyrox_bulk_state');
+      if (saved) {
+        try {
+          appState = mergeWithDefaults(JSON.parse(saved));
+        } catch (e) {
+          appState = mergeWithDefaults(null);
+        }
+      }
+    }
+
+    function saveLocalCache() {
+      localStorage.setItem('movesync_hyrox_bulk_state', JSON.stringify(appState));
+    }
+
+    async function fetchFromCloud() {
+      if (!supabaseClient) return;
+
+      try {
+        const { data, error } = await supabaseClient
+          .from('planner_sync')
+          .select('data')
+          .eq('id', 'diet')
+          .maybeSingle();
+
+        if (error) {
+          console.warn("Supabase fetch error:", error);
+          updateSyncStatus('offline');
+          return;
+        }
+
+        if (data && data.data) {
+          appState = mergeWithDefaults(data.data);
+          saveLocalCache();
+          renderAll();
+          updateSyncStatus('ok');
+        } else {
+          await pushToCloud();
+        }
+      } catch (err) {
+        console.error("Cloud fetch exception:", err);
+        updateSyncStatus('offline');
+      }
+    }
+
+    function pushToCloud() {
+      saveLocalCache();
+      if (!supabaseClient) {
+        updateSyncStatus('offline');
+        return;
+      }
+
+      updateSyncStatus('syncing');
+      clearTimeout(debounceTimer);
+      debounceTimer = setTimeout(async () => {
+        try {
+          const { error } = await supabaseClient
+            .from('planner_sync')
+            .upsert({
+              id: 'diet',
+              data: appState,
+              updated_at: new Date().toISOString()
+            });
+
+          if (error) throw error;
+          updateSyncStatus('ok');
+        } catch (err) {
+          console.error("Cloud push failed:", err);
+          updateSyncStatus('offline');
+        }
+      }, 500);
+    }
+
+    function subscribeToCloud() {
+      if (!supabaseClient) return;
+      supabaseClient
+        .channel('diet_realtime_changes')
+        .on('postgres_changes', { event: '*', schema: 'public', table: 'planner_sync', filter: 'id=eq.diet' }, payload => {
+          if (payload.new && payload.new.data) {
+            appState = mergeWithDefaults(payload.new.data);
+            saveLocalCache();
+            renderAll();
+            updateSyncStatus('ok');
+          }
+        })
+        .subscribe();
+    }
+
+    function forceCloudSync() {
+      if (supabaseClient) {
+        fetchFromCloud();
+      } else {
+        alert("Brak aktywnego klucza Supabase. Dane są w pełni bezpieczne i zapisują się w pamięci podręcznej przeglądarki!");
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 6. CALCULATIONS & RENDERING ENGINE
+    // -------------------------------------------------------------
+    function getSlotMacros(slotIndex) {
+      const optionIndex = appState.selectedMealIndexes[slotIndex];
+      const baseMeal = MEALS_DATABASE[slotIndex][optionIndex];
+      const booster = appState.boosters[slotIndex];
+
+      let extraKcal = 0;
+      let extraProtein = 0;
+
+      if (booster.pb) { extraKcal += 100; extraProtein += 4; }
+      if (booster.oil) { extraKcal += 90; }
+      if (booster.cheese) { extraKcal += 100; extraProtein += 7; }
+
+      return {
+        name: baseMeal.name,
+        kcal: baseMeal.kcal + extraKcal,
+        protein: baseMeal.protein + extraProtein,
+        ingredients: baseMeal.ingredients
+      };
+    }
+
+    function calculateDailyTotals() {
+      let totalKcal = 0;
+      let totalProtein = 0;
+
+      for (let i = 0; i < 5; i++) {
+        if (appState.mealsEaten[i]) {
+          const m = getSlotMacros(i);
+          totalKcal += m.kcal;
+          totalProtein += m.protein;
+        }
+      }
+
+      // Add emergency additions
+      appState.emergencyAdditions.forEach(item => {
+        totalKcal += item.kcal;
+        totalProtein += item.protein;
+      });
+
+      return { totalKcal, totalProtein };
+    }
+
+    function renderAll() {
+      renderHeaderAndModes();
+      renderMealsList();
+      renderMacroSummary();
+      renderWeeklyChart();
+      renderWater();
+      renderProteinBento();
+      renderWeight();
+      renderPackingChecklist();
+      renderShoppingList();
+      renderEmergencyTab();
+      lucide.createIcons();
+    }
+
+    function renderHeaderAndModes() {
+      const btnHyrox = document.getElementById('btn-mode-hyrox');
+      const btnRecovery = document.getElementById('btn-mode-recovery');
+
+      if (appState.hyroxMode === 'hyrox') {
+        btnHyrox.className = "flex-1 py-1.5 px-2 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1 bg-[#FF7597] text-white shadow-sm";
+        btnRecovery.className = "flex-1 py-1.5 px-2 rounded-full text-xs font-black text-slate-600 dark:text-slate-400 transition-all flex items-center justify-center gap-1";
+      } else {
+        btnRecovery.className = "flex-1 py-1.5 px-2 rounded-full text-xs font-black transition-all flex items-center justify-center gap-1 bg-emerald-500 text-white shadow-sm";
+        btnHyrox.className = "flex-1 py-1.5 px-2 rounded-full text-xs font-black text-slate-600 dark:text-slate-400 transition-all flex items-center justify-center gap-1";
+      }
+    }
+
+    function setHyroxMode(mode) {
+      appState.hyroxMode = mode;
+      renderAll();
+      pushToCloud();
+    }
+
+    function renderMacroSummary() {
+      const targetKcal = appState.hyroxMode === 'hyrox' ? 2750 : 2500;
+      const { totalKcal, totalProtein } = calculateDailyTotals();
+
+      document.getElementById('target-kcal-badge').innerText = `Cel: ${targetKcal} kcal`;
+      document.getElementById('target-kcal-sub').innerText = targetKcal;
+      document.getElementById('logged-kcal-text').innerText = totalKcal;
+      document.getElementById('logged-protein-text').innerText = `${totalProtein}g`;
+
+      const percent = Math.min(100, Math.round((totalKcal / targetKcal) * 100));
+      document.getElementById('logged-kcal-bar').style.width = `${percent}%`;
+
+      // Update Sunday in weekly history
+      appState.weeklyHistory['Nd'] = totalKcal;
+    }
+
+    function renderMealsList() {
+      const container = document.getElementById('meals-list-container');
+      container.innerHTML = '';
+
+      for (let i = 0; i < 5; i++) {
+        const macros = getSlotMacros(i);
+        const isEaten = appState.mealsEaten[i];
+        const card = document.createElement('div');
+
+        card.onclick = () => openMealModal(i);
+
+        card.className = `bento-card p-4 rounded-bento border cursor-pointer transition-all ${
+          isEaten 
+            ? 'bg-[#FFF0F3] dark:bg-[#2B1B22] border-[#FFC2D1] dark:border-rose-900/60 shadow-sm' 
+            : 'bg-white dark:bg-[#18181F] border-slate-200/80 dark:border-slate-800 hover:border-rose-200'
+        }`;
+
+        const activeBoosters = [];
+        if (appState.boosters[i].pb) activeBoosters.push('🥜 Masło orzechowe');
+        if (appState.boosters[i].oil) activeBoosters.push('🫒 Oliwa');
+        if (appState.boosters[i].cheese) activeBoosters.push('🧀 Ser');
+
+        card.innerHTML = `
+          <div class="flex items-center justify-between gap-2">
+            <span class="text-[11px] font-black uppercase tracking-wider ${isEaten ? 'text-rose-600 dark:text-rose-300' : 'text-slate-400'}">
+              ${SLOT_TITLES[i]}
+            </span>
+
+            <div class="flex items-center gap-2">
+              <span class="text-xs font-black px-2.5 py-0.5 rounded-full ${isEaten ? 'bg-rose-200/80 text-rose-950 dark:bg-rose-900 dark:text-rose-100' : 'bg-slate-100 dark:bg-slate-800 text-slate-700 dark:text-slate-300'}">
+                ${macros.kcal} kcal
+              </span>
+              <input type="checkbox" ${isEaten ? 'checked' : ''} 
+                onclick="event.stopPropagation(); toggleMealEaten(${i})"
+                class="custom-check border-rose-500 text-rose-500">
+            </div>
+          </div>
+
+          <div class="mt-1.5">
+            <h3 class="text-base font-black leading-snug ${isEaten ? 'line-through opacity-75' : ''}">
+              ${macros.name}
+            </h3>
+            <div class="flex items-center justify-between text-xs font-bold text-slate-500 dark:text-slate-400 mt-0.5">
+              <span>Białko: ${macros.protein}g</span>
+              <span class="text-[11px] text-rose-500">Edytuj / Zamień ➔</span>
+            </div>
+          </div>
+
+          ${activeBoosters.length > 0 ? `
+            <div class="mt-2 pt-2 border-t border-rose-100 dark:border-rose-950 flex flex-wrap gap-1">
+              ${activeBoosters.map(b => `<span class="text-[10px] font-extrabold px-2 py-0.5 rounded-full bg-amber-100 dark:bg-amber-950 text-amber-900 dark:text-amber-200">${b}</span>`).join('')}
+            </div>
+          ` : ''}
+        `;
+
+        container.appendChild(card);
+      }
+    }
+
+    function toggleMealEaten(slotIndex) {
+      appState.mealsEaten[slotIndex] = !appState.mealsEaten[slotIndex];
+      renderMacroSummary();
+      renderMealsList();
+      renderWeeklyChart();
+      renderProteinBento();
+      pushToCloud();
+    }
+
+    function randomizeAllMeals() {
+      for (let i = 0; i < 5; i++) {
+        appState.selectedMealIndexes[i] = Math.floor(Math.random() * 7);
+      }
+      renderAll();
+      pushToCloud();
+    }
+
+    // -------------------------------------------------------------
+    // 7. MEAL MODAL LOGIC (SWAP, BOOSTERS, INGREDIENTS)
+    // -------------------------------------------------------------
+    function openMealModal(slotIndex) {
+      activeModalSlot = slotIndex;
+      const modal = document.getElementById('meal-modal');
+      modal.classList.remove('hidden');
+      modal.classList.add('flex');
+
+      updateModalUI();
+    }
+
+    function closeMealModal() {
+      const modal = document.getElementById('meal-modal');
+      modal.classList.add('hidden');
+      modal.classList.remove('flex');
+      activeModalSlot = null;
+    }
+
+    function updateModalUI() {
+      if (activeModalSlot === null) return;
+      const slotIndex = activeModalSlot;
+      const macros = getSlotMacros(slotIndex);
+      const isEaten = appState.mealsEaten[slotIndex];
+
+      document.getElementById('modal-slot-title').innerText = SLOT_TITLES[slotIndex];
+      document.getElementById('modal-meal-name').innerText = macros.name;
+      document.getElementById('modal-meal-kcal').innerText = macros.kcal;
+      document.getElementById('modal-meal-protein').innerText = macros.protein;
+
+      // Eaten button state
+      const btnEaten = document.getElementById('modal-btn-eaten');
+      if (isEaten) {
+        btnEaten.className = "px-4 py-2 rounded-xl font-black text-xs transition-all bg-emerald-600 text-white shadow-sm";
+        btnEaten.innerText = "✓ Zjedzone";
+      } else {
+        btnEaten.className = "px-4 py-2 rounded-xl font-black text-xs transition-all bg-slate-200 dark:bg-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-300";
+        btnEaten.innerText = "Oznacz jako Zjedzone";
+      }
+
+      // Ingredients List
+      const ingContainer = document.getElementById('modal-ingredients-list');
+      ingContainer.innerHTML = macros.ingredients.map(ing => `<li class="flex items-center gap-1.5"><span class="w-1.5 h-1.5 rounded-full bg-rose-400"></span>${ing}</li>`).join('');
+
+      // Boosters Checkboxes
+      const booster = appState.boosters[slotIndex];
+      document.getElementById('booster-pb').checked = Boolean(booster.pb);
+      document.getElementById('booster-oil').checked = Boolean(booster.oil);
+      document.getElementById('booster-cheese').checked = Boolean(booster.cheese);
+
+      // Render 7 Swap Options
+      const optionsContainer = document.getElementById('modal-swap-options');
+      optionsContainer.innerHTML = '';
+
+      MEALS_DATABASE[slotIndex].forEach((option, idx) => {
+        const isSelected = appState.selectedMealIndexes[slotIndex] === idx;
+        const optBtn = document.createElement('button');
+        optBtn.onclick = () => selectOptionForSlot(idx);
+        optBtn.className = `w-full text-left p-2.5 rounded-xl border flex items-center justify-between text-xs font-bold transition-all ${
+          isSelected 
+            ? 'bg-rose-500 text-white border-rose-500 shadow-sm font-black' 
+            : 'bg-white dark:bg-slate-900 border-slate-200 dark:border-slate-800 text-slate-800 dark:text-slate-200 hover:bg-slate-50'
+        }`;
+        optBtn.innerHTML = `
+          <span>${idx + 1}. ${option.name}</span>
+          <span class="${isSelected ? 'text-white' : 'text-slate-400'}">${option.kcal} kcal</span>
+        `;
+        optionsContainer.appendChild(optBtn);
+      });
+    }
+
+    function toggleMealEatenFromModal() {
+      if (activeModalSlot !== null) {
+        toggleMealEaten(activeModalSlot);
+        updateModalUI();
+      }
+    }
+
+    function toggleBooster(boosterType) {
+      if (activeModalSlot !== null) {
+        const b = appState.boosters[activeModalSlot];
+        b[boosterType] = !b[boosterType];
+        updateModalUI();
+        renderMacroSummary();
+        renderMealsList();
+        renderWeeklyChart();
+        renderProteinBento();
+        renderShoppingList();
+        pushToCloud();
+      }
+    }
+
+    function selectOptionForSlot(optionIndex) {
+      if (activeModalSlot !== null) {
+        appState.selectedMealIndexes[activeModalSlot] = optionIndex;
+        updateModalUI();
+        renderAll();
+        pushToCloud();
+      }
+    }
+
+    function randomizeSingleSlotInModal() {
+      if (activeModalSlot !== null) {
+        const rand = Math.floor(Math.random() * 7);
+        selectOptionForSlot(rand);
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 8. POSTĘP: WEEKLY CHART, WATER, PROTEIN, WEIGHT
+    // -------------------------------------------------------------
+    function renderWeeklyChart() {
+      const container = document.getElementById('weekly-chart-bars');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const days = ['Pn', 'Wt', 'Śr', 'Cz', 'Pt', 'So', 'Nd'];
+      const targetKcal = appState.hyroxMode === 'hyrox' ? 2750 : 2500;
+      let totalKcalSum = 0;
+
+      days.forEach(day => {
+        const kcal = appState.weeklyHistory[day] || 0;
+        totalKcalSum += kcal;
+        const heightPercent = Math.min(100, Math.max(12, Math.round((kcal / 3000) * 100)));
+
+        const barCol = document.createElement('div');
+        barCol.className = "flex flex-col items-center gap-1.5 h-full justify-end flex-1";
+        
+        const isToday = day === 'Nd';
+
+        barCol.innerHTML = `
+          <span class="text-[10px] font-black text-amber-900/80 dark:text-yellow-200">${kcal > 0 ? kcal : ''}</span>
+          <div class="w-full max-w-[28px] rounded-t-xl transition-all duration-500 shadow-sm ${isToday ? 'bg-amber-500 dark:bg-yellow-400' : 'bg-amber-300 dark:bg-yellow-600/60'}" style="height: ${heightPercent}%"></div>
+          <span class="text-[11px] font-black ${isToday ? 'text-amber-950 dark:text-yellow-100 underline' : 'text-amber-900/60 dark:text-yellow-300/60'}">${day}</span>
+        `;
+        container.appendChild(barCol);
+      });
+
+      const avg = Math.round(totalKcalSum / 7);
+      document.getElementById('weekly-avg-kcal').innerText = avg;
+    }
+
+    function renderWater() {
+      const container = document.getElementById('water-cups-grid');
+      container.innerHTML = '';
+      
+      const cups = appState.waterCups;
+      document.getElementById('water-count-text').innerText = `${cups} / 8 szklanek`;
+
+      for (let i = 0; i < 8; i++) {
+        const isFilled = i < cups;
+        const span = document.createElement('span');
+        span.className = `transition-transform duration-200 cursor-pointer ${isFilled ? 'scale-110 opacity-100' : 'opacity-30 grayscale'}`;
+        span.innerText = '🥛';
+        span.onclick = () => {
+          appState.waterCups = i + 1;
+          renderWater();
+          pushToCloud();
+        };
+        container.appendChild(span);
+      }
+    }
+
+    function changeWater(delta) {
+      appState.waterCups = Math.max(0, Math.min(8, appState.waterCups + delta));
+      renderWater();
+      pushToCloud();
+    }
+
+    function renderProteinBento() {
+      const { totalProtein } = calculateDailyTotals();
+      document.getElementById('bento-protein-val').innerText = totalProtein;
+      const percent = Math.min(100, Math.round((totalProtein / 100) * 100));
+      document.getElementById('bento-protein-bar').style.width = `${percent}%`;
+    }
+
+    function renderWeight() {
+      const curr = appState.weightCurrent;
+      document.getElementById('weight-current-display').innerText = curr.toFixed(1);
+      
+      const gained = curr - 46.7;
+      const badge = document.getElementById('weight-gained-badge');
+      badge.innerText = `${gained >= 0 ? '+' : ''}${gained.toFixed(1)} kg`;
+
+      const progress = Math.min(100, Math.max(0, Math.round((gained / 3.3) * 100)));
+      document.getElementById('weight-progress-percent').innerText = `${progress}% celu`;
+      document.getElementById('weight-progress-bar').style.width = `${progress}%`;
+
+      // Render weight logs
+      const list = document.getElementById('weight-history-list');
+      list.innerHTML = appState.weightLogs.slice(-3).reverse().map(log => `
+        <div class="flex justify-between items-center bg-white/60 dark:bg-emerald-950/40 px-3 py-1.5 rounded-xl font-bold text-slate-700 dark:text-emerald-200">
+          <span>📅 ${log.date}</span>
+          <span class="font-black text-emerald-800 dark:text-emerald-300">${log.weight} kg</span>
+        </div>
+      `).join('');
+    }
+
+    function logNewWeight() {
+      const input = document.getElementById('input-new-weight');
+      const val = parseFloat(input.value);
+      if (!isNaN(val) && val > 30 && val < 120) {
+        appState.weightCurrent = val;
+        const dateStr = new Date().toISOString().split('T')[0];
+        appState.weightLogs.push({ date: dateStr, weight: val });
+        input.value = '';
+        renderWeight();
+        pushToCloud();
+      }
+    }
+
+    // -------------------------------------------------------------
+    // 9. AUTOPILOT PACKING & SHOPPING LIST
+    // -------------------------------------------------------------
+    function renderPackingChecklist() {
+      const c = appState.packingChecklist;
+      document.getElementById('check-pack-sniadanie').checked = Boolean(c.sniadanie);
+      document.getElementById('check-pack-obiad').checked = Boolean(c.obiad);
+      document.getElementById('check-pack-szejk').checked = Boolean(c.szejk);
+      document.getElementById('check-pack-woda').checked = Boolean(c.woda);
+
+      document.getElementById('packing-streak-badge').innerText = `Seria: ${appState.packingStreak} dni 🔥`;
+    }
+
+    function togglePackingCheck(key) {
+      appState.packingChecklist[key] = !appState.packingChecklist[key];
+
+      const allChecked = Object.values(appState.packingChecklist).every(Boolean);
+      if (allChecked) {
+        appState.packingStreak += 1;
+      }
+      renderPackingChecklist();
+      pushToCloud();
+    }
+
+    function setShoppingMultiplier(mult) {
+      appState.shoppingMultiplier = mult;
+      renderShoppingList();
+      pushToCloud();
+    }
+
+    function renderShoppingList() {
+      const container = document.getElementById('shopping-list-container');
+      const mult = appState.shoppingMultiplier || 1;
+
+      document.getElementById('btn-shop-1x').className = mult === 1 
+        ? "px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm" 
+        : "px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900";
+      
+      document.getElementById('btn-shop-3x').className = mult === 3 
+        ? "px-2.5 py-1 rounded-lg bg-white dark:bg-slate-900 text-slate-900 dark:text-white shadow-sm" 
+        : "px-2.5 py-1 rounded-lg text-slate-500 hover:text-slate-900";
+
+      // Gather ingredients from 5 selected meals
+      const ingredientsMap = {};
+
+      for (let i = 0; i < 5; i++) {
+        const macros = getSlotMacros(i);
+        macros.ingredients.forEach(ing => {
+          ingredientsMap[ing] = (ingredientsMap[ing] || 0) + 1;
+        });
+      }
+
+      container.innerHTML = '';
+      const keys = Object.keys(ingredientsMap);
+
+      if (keys.length === 0) {
+        container.innerHTML = `<p class="text-xs text-slate-400">Brak składników na liście.</p>`;
+        return;
+      }
+
+      keys.forEach((ingName, idx) => {
+        const isChecked = Boolean(appState.shoppingChecked[ingName]);
+        const itemRow = document.createElement('label');
+        itemRow.className = `flex items-center justify-between p-2.5 rounded-2xl border transition-all cursor-pointer ${
+          isChecked 
+            ? 'bg-slate-100 dark:bg-slate-800/40 border-slate-200 text-slate-400 line-through' 
+            : 'bg-slate-50 dark:bg-slate-800/80 border-slate-200/80 dark:border-slate-800 text-slate-800 dark:text-slate-200'
+        }`;
+
+        itemRow.innerHTML = `
+          <div class="flex items-center gap-3">
+            <input type="checkbox" ${isChecked ? 'checked' : ''} 
+              onchange="toggleShoppingItem('${ingName.replace(/'/g, "\\'")}')"
+              class="custom-check border-slate-700 text-slate-700">
+            <span class="text-xs font-bold">${ingName}</span>
+          </div>
+          ${mult > 1 ? `<span class="text-[11px] font-black px-2 py-0.5 rounded-full bg-rose-100 dark:bg-rose-950 text-rose-600">x${mult} dni</span>` : ''}
+        `;
+
+        container.appendChild(itemRow);
+      });
+    }
+
+    function toggleShoppingItem(ingName) {
+      appState.shoppingChecked[ingName] = !appState.shoppingChecked[ingName];
+      renderShoppingList();
+      pushToCloud();
+    }
+
+    // -------------------------------------------------------------
+    // 10. TAB 4: RATUJ MASĘ (EMERGENCY BULK)
+    // -------------------------------------------------------------
+    function renderEmergencyTab() {
+      const grid = document.getElementById('emergency-cards-grid');
+      grid.innerHTML = '';
+
+      EMERGENCY_OPTIONS.forEach(opt => {
+        const card = document.createElement('div');
+        card.className = "bento-card p-4 rounded-bento bg-white dark:bg-[#18181F] border border-rose-200/80 dark:border-slate-800 shadow-sm flex items-center justify-between gap-3";
+        
+        card.innerHTML = `
+          <div class="flex-1">
+            <div class="flex items-center gap-2">
+              <span class="text-sm font-black text-rose-600 dark:text-rose-400">+${opt.kcal} kcal</span>
+              <span class="text-xs font-bold text-slate-400">• ${opt.protein}g B</span>
+            </div>
+            <h4 class="text-sm font-black text-slate-900 dark:text-white leading-snug mt-0.5">${opt.name}</h4>
+            <p class="text-[11px] text-slate-500 font-bold mt-0.5">${opt.desc}</p>
+          </div>
+
+          <button onclick="addEmergencyBulk('${opt.id}')" class="px-3.5 py-2.5 rounded-2xl bg-rose-500 hover:bg-rose-600 text-white font-black text-xs shadow-md active:scale-95 transition-all flex items-center gap-1 shrink-0">
+            <span>+ Dodaj</span>
+          </button>
+        `;
+        grid.appendChild(card);
+      });
+
+      // Render Logged Emergency Items
+      const list = document.getElementById('logged-emergency-list');
+      if (appState.emergencyAdditions.length === 0) {
+        list.innerHTML = `<p class="text-slate-400 italic font-normal">Nie dodano jeszcze dzisiaj żadnego posiłku ratunkowego.</p>`;
+      } else {
+        list.innerHTML = appState.emergencyAdditions.map(item => `
+          <div class="flex items-center justify-between p-2 rounded-xl bg-rose-50 dark:bg-rose-950/40 text-rose-950 dark:text-rose-200">
+            <span>⚡ ${item.name} (+${item.kcal} kcal)</span>
+            <button onclick="removeEmergencyBulk('${item.id}')" class="text-rose-500 hover:text-rose-700 p-1">
+              ✕
+            </button>
+          </div>
+        `).join('');
+      }
+    }
+
+    function addEmergencyBulk(optId) {
+      const opt = EMERGENCY_OPTIONS.find(o => o.id === optId);
+      if (opt) {
+        appState.emergencyAdditions.push({
+          id: Date.now().toString(),
+          name: opt.name,
+          kcal: opt.kcal,
+          protein: opt.protein,
+          timestamp: new Date().toLocaleTimeString('pl-PL', { hour: '2-digit', minute: '2-digit' })
+        });
+
+        renderMacroSummary();
+        renderProteinBento();
+        renderWeeklyChart();
+        renderEmergencyTab();
+        pushToCloud();
+      }
+    }
+
+    function removeEmergencyBulk(itemId) {
+      appState.emergencyAdditions = appState.emergencyAdditions.filter(i => i.id !== itemId);
+      renderMacroSummary();
+      renderProteinBento();
+      renderWeeklyChart();
+      renderEmergencyTab();
+      pushToCloud();
+    }
+
+    // -------------------------------------------------------------
+    // 11. NAVIGATION & THEME SWITCHER
+    // -------------------------------------------------------------
+    function switchTab(tabId) {
+      document.querySelectorAll('.tab-content').forEach(el => el.classList.add('hidden'));
+      document.getElementById(`tab-${tabId}`).classList.remove('hidden');
+
+      document.querySelectorAll('.nav-btn').forEach(btn => {
+        btn.classList.remove('text-[#FF7597]', 'dark:text-[#FF7597]');
+        btn.classList.add('opacity-60');
+      });
+
+      const activeNav = document.getElementById(`nav-${tabId}`);
+      activeNav.classList.add('text-[#FF7597]', 'dark:text-[#FF7597]');
+      activeNav.classList.remove('opacity-60');
+    }
+
+    function toggleDarkMode() {
+      const isDark = document.documentElement.classList.toggle('dark');
+      appState.theme = isDark ? 'dark' : 'light';
+      pushToCloud();
+    }
+  </script>
+</body>
+</html>
